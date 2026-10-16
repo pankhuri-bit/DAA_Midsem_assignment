@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merge Sort Animation</title>
+<style>
+  :root { --blue: #2563eb; --blue-light: #dbeafe; --blue-pale: #eff6ff; --text: #172033; --muted: #64748b; --border: #dbe3ee; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--text); font-family: Arial, Helvetica, sans-serif; }
+  main { width: min(850px, calc(100% - 32px)); margin: 54px auto; }
+  h1 { margin: 0 0 8px; font-size: 30px; font-weight: 700; letter-spacing: -0.6px; }
+  .subtitle { margin: 0 0 28px; color: var(--muted); font-size: 15px; }
+  .input-row { display: flex; gap: 10px; }
+  input { flex: 1; min-width: 0; padding: 13px 14px; border: 1px solid var(--border); border-radius: 8px; font: inherit; outline: none; }
+  input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-light); }
+  button { border: 0; border-radius: 8px; padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+  #generate { background: var(--blue); color: #fff; }
+  #generate:hover { background: #1d4ed8; }
+  #animation { margin-top: 30px; display: none; }
+  .status { min-height: 24px; margin-bottom: 15px; font-size: 15px; color: #334155; }
+  .stage { min-height: 120px; border: 1px solid var(--border); border-radius: 10px; padding: 22px; background: #fff; }
+  .array-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .array { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 44px; }
+  .item { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #93b4f5; border-radius: 7px; background: var(--blue-pale); color: #1d4ed8; font-weight: 600; transition: background .2s, transform .2s; }
+  .item.active { background: var(--blue); color: #fff; border-color: var(--blue); transform: translateY(-3px); }
+  .item.sorted { background: #dbeafe; border-color: #60a5fa; }
+  .controls { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+  .controls button { background: var(--blue-pale); color: #1d4ed8; border: 1px solid #bfdbfe; padding: 9px 14px; }
+  .controls button:disabled { opacity: .4; cursor: default; }
+  .step-count { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .error { color: #b91c1c; font-size: 14px; margin-top: 9px; min-height: 18px; }
+  @media (max-width: 520px) {
+    main { margin-top: 32px; }
+    h1 { font-size: 26px; }
+    .input-row { flex-direction: column; }
+    #generate { width: 100%; }
+    .stage { padding: 16px; }
+    .item { width: 38px; height: 38px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Merge Sort Animation</h1>
+  <p class="subtitle">Enter numbers separated by commas or spaces.</p>
+  <form id="sortForm">
+    <div class="input-row">
+      <input id="numbers" type="text" value="38, 27, 43, 3, 9, 82, 10" aria-label="Numbers to sort" placeholder="e.g. 38, 27, 43, 3, 9">
+      <button id="generate" type="submit">Generate Animation</button>
+    </div>
+    <div id="error" class="error" aria-live="polite"></div>
+  </form>
+
+  <section id="animation" aria-live="polite">
+    <div id="status" class="status"></div>
+    <div class="stage">
+      <div class="array-label">Current array</div>
+      <div id="array" class="array"></div>
+    </div>
+    <div class="controls">
+      <button id="back" type="button">Previous</button>
+      <button id="play" type="button">Play</button>
+      <button id="next" type="button">Next</button>
+      <span id="stepCount" class="step-count"></span>
+    </div>
+  </section>
+</main>
+<script>
+const form = document.getElementById('sortForm');
+const input = document.getElementById('numbers');
+const errorBox = document.getElementById('error');
+const animation = document.getElementById('animation');
+const statusBox = document.getElementById('status');
+const arrayBox = document.getElementById('array');
+const backButton = document.getElementById('back');
+const nextButton = document.getElementById('next');
+const playButton = document.getElementById('play');
+const stepCount = document.getElementById('stepCount');
+let steps = [];
+let current = 0;
+let timer = null;
+
+function record(values, message, active = [], sorted = false) {
+  steps.push({ values: values.slice(), message, active: active.slice(), sorted });
+}
+function mergeSort(values, start = 0) {
+  if (values.length <= 1) return values.slice();
+  const middle = Math.floor(values.length / 2);
+  const left = values.slice(0, middle);
+  const right = values.slice(middle);
+  record(values, `Divide the array into [${left.join(', ')}] and [${right.join(', ')}].`);
+  const sortedLeft = mergeSort(left, start);
+  const sortedRight = mergeSort(right, start + middle);
+  let i = 0, j = 0;
+  const merged = [];
+  while (i < sortedLeft.length && j < sortedRight.length) {
+    record([...sortedLeft.slice(i), ...sortedRight.slice(j)], `Compare ${sortedLeft[i]} and ${sortedRight[j]}.`, [0, 1]);
+    if (sortedLeft[i] <= sortedRight[j]) merged.push(sortedLeft[i++]);
+    else merged.push(sortedRight[j++]);
+    record(merged.concat(sortedLeft.slice(i), sortedRight.slice(j)), `Place ${merged[merged.length - 1]} into the merged array.`);
+  }
+  while (i < sortedLeft.length) {
+    merged.push(sortedLeft[i++]);
+    record(merged.concat(sortedLeft.slice(i), sortedRight.slice(j)), `Place ${merged[merged.length - 1]} into the merged array.`);
+  }
+  while (j < sortedRight.length) {
+    merged.push(sortedRight[j++]);
+    record(merged.concat(sortedLeft.slice(i), sortedRight.slice(j)), `Place ${merged[merged.length - 1]} into the merged array.`);
+  }
+  record(merged, `Merge complete: [${merged.join(', ')}].`, [], true);
+  return merged;
+}
+function render() {
+  const step = steps[current];
+  statusBox.textContent = step.message;
+  arrayBox.replaceChildren();
+  step.values.forEach((value, index) => {
+    const item = document.createElement('div');
+    item.className = 'item' + (step.active.includes(index) ? ' active' : '') + (step.sorted ? ' sorted' : '');
+    item.textContent = value;
+    arrayBox.appendChild(item);
+  });
+  backButton.disabled = current === 0;
+  nextButton.disabled = current === steps.length - 1;
+  stepCount.textContent = `Step ${current + 1} of ${steps.length}`;
+}
+function stopPlayback() {
+  if (timer) clearInterval(timer);
+  timer = null;
+  playButton.textContent = 'Play';
+}
+function startAnimation(event) {
+  event.preventDefault();
+  stopPlayback();
+  errorBox.textContent = '';
+  const raw = input.value.trim();
+  const tokens = raw.split(/[\s,]+/).filter(Boolean);
+  const values = tokens.map(Number);
+  if (!raw || values.some(value => !Number.isFinite(value))) {
+    errorBox.textContent = 'Enter valid numbers separated by commas or spaces.';
+    return;
+  }
+  if (values.length < 2 || values.length > 16) {
+    errorBox.textContent = 'Please enter between 2 and 16 numbers.';
+    return;
+  }
+  steps = [];
+  record(values, `Start with [${values.join(', ')}].`);
+  const sorted = mergeSort(values);
+  record(sorted, `Sorting complete: [${sorted.join(', ')}].`, [], true);
+  current = 0;
+  animation.style.display = 'block';
+  render();
+}
+form.addEventListener('submit', startAnimation);
+backButton.addEventListener('click', () => { stopPlayback(); if (current > 0) current--; render(); });
+nextButton.addEventListener('click', () => { stopPlayback(); if (current < steps.length - 1) current++; render(); });
+playButton.addEventListener('click', () => {
+  if (timer) { stopPlayback(); return; }
+  if (current >= steps.length - 1) current = 0;
+  playButton.textContent = 'Pause';
+  render();
+  timer = setInterval(() => {
+    if (current >= steps.length - 1) { stopPlayback(); return; }
+    current++;
+    render();
+  }, 900);
+});
+form.requestSubmit();
+</script>
+</body>
+</html>
